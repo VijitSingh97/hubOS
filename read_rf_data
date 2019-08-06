@@ -8,13 +8,13 @@ mariadb_connection = mariadb.connect(user='root', password='mynewpassword', data
 cursor = mariadb_connection.cursor()
 
 #   convert values from arbitary to real units
-def convertTemp(temp):
-    return temp - 55
+def convertTemp(temp): # F
+    return round(((temp - 55) * (9/5)) + 32,2)
 
-def convertPressure(press): # must use real Celcius value
+def convertPressure(press): # PSI
     deltaP500 = 0.8
     # deltaP900 = 1.572
-    return deltaP500 * press + ( 100 - deltaP500 )
+    return round((deltaP500 * press + (100 - deltaP500)) * 0.145038,2)
 
 
 print("staring loop...")
@@ -43,7 +43,7 @@ while(1):
                 # Convert into integer
                 final_tire_id = int(tire_id, 16)
                 final_firmware = firmware
-                print("temp pressure value: " + str(int(pressure, 16)))
+                # print("temp pressure value: " + str(int(pressure, 16)))
                 final_pressure = convertPressure(int(pressure, 16))
                 final_z = int(z, 16)
                 final_x = int(x, 16)
@@ -53,11 +53,11 @@ while(1):
                 # Print out conversion result
                 print("final_tire_id: " + str(final_tire_id))
                 print("final_firmware: " + str(final_firmware))
-                print("final_pressure: " + str(final_pressure) + 'KPa')
+                print("final_pressure: " + str(final_pressure) + 'PSI')
                 print("final_z: " + str(final_z))
                 print("final_x: " + str(final_x))
                 print("final_voltage: " + str(final_voltage))
-                print("final_temp: " + str(final_temp) + 'C')
+                print("final_temp: " + str(final_temp) + 'F')
                 print("final_counter: " + str(final_counter))
                 cursor.execute("INSERT INTO tpms (counter,tire_id,firmware,pressure,z_axis,x_axis,voltage,temp) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", (final_counter, str(final_tire_id), str(final_firmware), str(final_pressure), str(final_z), str(final_x), str(final_voltage), str(final_temp)))
                 mariadb_connection.commit()
