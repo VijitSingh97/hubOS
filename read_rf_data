@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import mysql.connector as mariadb
+import serial
+from time import sleep
+
+mariadb_connection = mariadb.connect(user='root', password='mynewpassword', database='hubDB')
+cursor = mariadb_connection.cursor()
+
+#   convert values from arbitary to real units
+def convertTemp(temp):
+    return temp - 55
+
+def convertPressure(press): # must use real Celcius value
+    deltaP500 = 0.8
+    # deltaP900 = 1.572
+    return deltaP500 * press + ( 100 - deltaP500 )
+
+
+print("staring loop...")
+cursor.execute("DELETE FROM tpms")
+mariadb_connection.commit()
+while(1):
+    with serial.Serial('/dev/ttyACM0', 115200, timeout=1) as ser:
+        x = ser.read()          # read one byte
+        #print(x)
+        s = ser.read(46)        # read up to 32 bytes (timeout)
+        #print(s)
+        line = ser.readline()
+        #print(line)
+        result = str(x,'utf-8') + str(s,'utf-8') + str(line,'utf-8')
+        if(len(result) > 5):
+                print("result: " + result)
+                # Split and get pressure and result from result string
+                tire_id = result[4:12]
+                firmware = result[12:14]
+                pressure = result[16:20]
+                z = result[20:24]
+                x = result[24:28]
+                voltage = result[28:30]
+                temp = result[30:32]
+                counter = result[36:40]
+                # Convert into integer
+                final_tire_id = int(tire_id, 16)
+                final_firmware = firmware
+                print("temp pressure value: " + str(int(pressure, 16)))
+                final_pressure = convertPressure(int(pressure, 16))
+                final_z = int(z, 16)
+                final_x = int(x, 16)
+                final_voltage = int(voltage, 16)
+                final_temp = convertTemp(int(temp, 16))
+                final_counter = int(counter, 16)
+                # Print out conversion result
+                print("final_tire_id: " + str(final_tire_id))
+                print("final_firmware: " + str(final_firmware))
+                print("final_pressure: " + str(final_pressure) + 'KPa')
+                print("final_z: " + str(final_z))
+                print("final_x: " + str(final_x))
+                print("final_voltage: " + str(final_voltage))
+                print("final_temp: " + str(final_temp) + 'C')
+                print("final_counter: " + str(final_counter))
+                cursor.execute("INSERT INTO tpms (counter,tire_id,firmware,pressure,z_axis,x_axis,voltage,temp) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", (final_counter, str(final_tire_id), str(final_firmware), str(final_pressure), str(final_z), str(final_x), str(final_voltage), str(final_temp)))
+                mariadb_connection.commit()
